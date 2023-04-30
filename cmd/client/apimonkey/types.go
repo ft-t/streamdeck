@@ -6,4 +6,5 @@ type config struct {
 	IntervalSeconds      int               `json:"intervalSeconds"`
 	ResponseJSONSelector string            `json:"responseJSONSelector"`
 	ResponseMapper       map[string]string `json:"responseMapper"`
+	TitlePrefix          string            `json:"titlePrefix"`
 }
