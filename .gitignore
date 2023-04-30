@@ -1,0 +1,8 @@
+
+.idea/
+
+pkg/github/github_test.go
+
+cmd/client/apimonkey/dist/
+
+cmd/server/githubmonkey/dist/

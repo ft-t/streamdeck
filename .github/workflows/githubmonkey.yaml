@@ -1,0 +1,10 @@
+on:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: sleep 60
+#      - run: exit 1
