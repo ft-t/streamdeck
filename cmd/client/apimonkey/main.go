@@ -6,6 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/rs/zerolog"
+	"github.com/valyala/fastjson"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"meow.tf/streamdeck/sdk"
 )
@@ -13,6 +14,19 @@ import (
 var lg zerolog.Logger
 var contextApp string
 var globalConfig *config
+
+func setSettingsFromPayload(payload *fastjson.Value) {
+	settingsBytes := payload.MarshalTo(nil)
+	lg.Debug().Msgf("Got configuration: %v", string(settingsBytes))
+
+	if err := json.Unmarshal(settingsBytes, &globalConfig); err != nil {
+		lg.Err(err).Send()
+		sdk.ShowAlert(contextApp)
+		return
+	}
+
+	lg.Info().Msg("config set")
+}
 
 func main() {
 	logFile := &lumberjack.Logger{
@@ -31,17 +45,15 @@ func main() {
 			return
 		}
 
-		settingsBytes := event.Payload.Get("settings").MarshalTo(nil)
-		lg.Debug().Msgf("Got configuration: %v", string(settingsBytes))
-
-		if err := json.Unmarshal(settingsBytes, &globalConfig); err != nil {
-			lg.Err(err).Send()
-			sdk.ShowAlert(contextApp)
-			return
-		}
+		setSettingsFromPayload(event.Payload.Get("settings"))
 
 		lg.Info().Msg("config set")
 		go process()
+	})
+
+	sdk.AddHandler(func(event *sdk.ReceiveSettingsEvent) {
+		lg.Debug().Msg("got ReceiveSettingsEvent")
+		setSettingsFromPayload(event.Settings)
 	})
 
 	sdk.AddHandler(func(event *sdk.KeyDownEvent) {

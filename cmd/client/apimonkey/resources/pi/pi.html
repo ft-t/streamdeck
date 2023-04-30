@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta name=viewport
+          content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
+    <meta name=apple-mobile-web-app-capable content=yes>
+    <meta name=apple-mobile-web-app-status-bar-style content=black>
+    <title>Settings</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/barraider/streamdeck-easypi@latest/src/sdpi.css">
+    <script src="https://cdn.jsdelivr.net/gh/barraider/streamdeck-easypi@latest/src/sdtools.common.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="sdpi-item" id="select_single">
+        <div class="sdpi-item-label">Request Type</div>
+        <select class="sdpi-item-value select sdProperty" v-model="config.methodType">
+            <option value="0" selected>GET</option>
+            <option value="1">POST</option>
+            <option value="2">PUT</option>
+            <option value="3">DELETE</option>
+            <option value="4">PATCH</option>
+        </select>
+    </div>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">API URL (*)</div>
+        <input class="sdpi-item-value sdProperty" placeholder="https://api.com" v-model="config.apiUrl">
+    </div>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Browser Url</div>
+        <input class="sdpi-item-value sdProperty" v-model="config.browserUrl" placeholder="https://google.com">
+    </div>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Interval (Sec)</div>
+        <input class="sdpi-item-value sdProperty" type="number" v-model="config.intervalSeconds">
+    </div>
+    <hr>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">JSON Selector</div>
+        <input class="sdpi-item-value sdProperty" v-model="config.responseJSONSelector">
+    </div>
+    <hr>
+    <div>
+        <div class="sdpi-item">
+            <button class="sdpi-item-value" @click="addMapperKey">Add New Response Mapping</button>
+        </div>
+        <div class="sdpi-item" v-for="record in responseMapping">
+            <input style="min-width:50%" class="sdpi-item-value sdProperty" v-model="record.key">
+            <input style="min-width:48%" class="sdpi-item-value sdProperty" v-model="record.value">
+        </div>
+    </div>
+    <hr>
+    <div class="sdpi-item">
+        <button class="sdpi-item-value" @click="save">Save</button>
+    </div>
+</div>
+
+</body>
+
+<script>
+    const {createApp} = Vue
+
+    createApp({
+        methods: {
+            addMapperKey() {
+                this.responseMapping.push({})
+            },
+            save() {
+                this.config.responseMapper = {}
+                for (let record of this.responseMapping) {
+                    if (!record.key || !record.value) {
+                        continue
+                    }
+
+                    this.config.responseMapper[record.key] = record.value
+                }
+
+                const json = JSON.stringify({
+                    'event': 'setSettings',
+                    'context': uuid,
+                    'payload': this.config
+                });
+                websocket.send(json);
+
+                let event = new Event('settingsUpdated');
+                document.dispatchEvent(event);
+            }
+        },
+        mounted() {
+            console.log("app created")
+            document.addEventListener('websocketCreate', () => {
+                this.config = window.actionInfo.payload.settings
+                this.responseMapping = []
+                if (this.config.responseMapper) {
+                    for (let key of Object.keys(this.config.responseMapper)) {
+                        this.responseMapping.push({
+                            key: key,
+                            value: this.config.responseMapper[key]
+                        })
+                    }
+                }
+            });
+        },
+        data() {
+            return {
+                config: {},
+                responseMapping: []
+            }
+        }
+    }).mount('#app')
+</script>
