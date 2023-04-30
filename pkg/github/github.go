@@ -48,6 +48,13 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, erro
 		return nil, err
 	}
 
+	if pr.GetMerged() {
+		return &CanMerge{
+			Checks:     checks,
+			StatusText: StatusTextMerged,
+		}, nil
+	}
+
 	if !pr.GetMergeable() {
 		return &CanMerge{
 			StatusText: StatusTextFail,
