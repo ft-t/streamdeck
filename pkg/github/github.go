@@ -70,7 +70,7 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (interface{}, er
 		}, nil
 	}
 
-	if pr.GetMergeableState() == "blocked" {
+	if pr.GetMergeableState() == "blocked" || pr.GetMergeableState() == "dirty" {
 		allChecksSuccess := true
 
 		for _, c := range checks {
