@@ -1,2 +1,4 @@
 
 .idea/
+
+pkg/github/github_test.go

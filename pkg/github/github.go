@@ -79,6 +79,9 @@ func (g *Github) getPRChecksStatus(
 		}
 	}
 
+	fmt.Println(commitSHA.GetMergeable())
+	fmt.Println(commitSHA.GetMergeableState())
+
 	return checksStatus, nil
 }
 
