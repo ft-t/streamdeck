@@ -115,22 +115,30 @@ func handleResponse(response string) {
 		return
 	}
 
-	if strings.HasPrefix(mapped, "http") || strings.HasSuffix(mapped, ".png") {
+	if strings.HasPrefix(mapped, "http") || strings.HasSuffix(mapped, ".png") || strings.HasSuffix(mapped, ".svg") {
 		if sb.Len() > 0 {
 			sdk.SetTitle(contextApp, sb.String(), 0)
 		}
 
-		if strings.HasSuffix(mapped, ".png") {
-			fileData, err := encodeFileToBase64(filepath.Join("images", mapped))
+		if strings.HasSuffix(mapped, ".png") || strings.HasSuffix(mapped, ".svg") {
+			fileData, err := readFile(filepath.Join("images", mapped))
+
 			if err != nil {
 				lg.Err(errors.Wrap(err, "image file not found")).Send()
 				sdk.SetImage(contextApp, "", 0)
 				sdk.ShowAlert(contextApp)
 				return
 			}
-			fileData = fmt.Sprintf("data:image/png;base64, %v", fileData)
+
+			imageData := ""
+			if strings.HasSuffix(mapped, ".png") {
+				imageData = fmt.Sprintf("data:image/png;base64, %v", base64.StdEncoding.EncodeToString(fileData))
+			} else if strings.HasSuffix(mapped, ".svg") {
+				imageData = fmt.Sprintf("data:image/svg+xml;charset=utf8,%v", string(fileData))
+			}
+
 			lg.Info().Msgf("seding to image %v", fileData)
-			sdk.SetImage(contextApp, fileData, 0)
+			sdk.SetImage(contextApp, imageData, 0)
 		}
 
 		sdk.ShowOk(contextApp)
@@ -144,12 +152,11 @@ func handleResponse(response string) {
 	}
 }
 
-func encodeFileToBase64(filename string) (string, error) {
+func readFile(filename string) ([]byte, error) {
 	fileContent, err := os.ReadFile(filename)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(fileContent)
-	return encoded, nil
+	return fileContent, nil
 }
