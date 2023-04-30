@@ -33,54 +33,100 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (interface{}, er
 
 	client := github.NewClient(tc)
 
-	// Fetch the GitHub checks status for the PR
-	checksStatus, err := g.getPRChecksStatus(ctx, client, owner, repo, prNum)
-	if err != nil {
-		return nil, errors.Wrap(err, "error fetching PR checks status")
-	}
-
-	for _, status := range checksStatus {
-		fmt.Printf("%s: %s || %s\n", status.Name, status.State, status.Conclusion)
-	}
-
-	// action_required
-
-	return nil, nil
-}
-
-func (g *Github) getPRChecksStatus(
-	ctx context.Context,
-	client *github.Client,
-	owner, repo string, prNum int,
-) ([]CheckStatus, error) {
-	commitSHA, _, err := client.PullRequests.Get(ctx, owner, repo, prNum)
+	pr, _, err := client.PullRequests.Get(ctx, owner, repo, prNum)
 	if err != nil {
 		return nil, err
 	}
 
+	//reviews, _, err := client.PullRequests.ListReviews(ctx, owner, repo, prNum, nil)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	checks, err := g.getChecks(ctx, client, owner, repo, pr.GetHead().GetSHA())
+	if err != nil {
+		return nil, err
+	}
+
+	if !pr.GetMergeable() {
+		return &CanMerge{
+			StatusText: StatusTextFail,
+			Reason:     fmt.Sprintf("Mergable - false. MergableState - %v", pr.GetMergeableState()),
+			Checks:     checks,
+		}, nil
+	}
+
+	if pr.GetMergeableState() == "clean" {
+		return &CanMerge{
+			Checks:     checks,
+			StatusText: StatusTextSuccess,
+		}, nil
+	}
+
+	if pr.GetMergeableState() == "unstable" {
+		return &CanMerge{
+			Checks:     checks,
+			StatusText: StatusTextWorkflowRunning,
+		}, nil
+	}
+
+	if pr.GetMergeableState() == "blocked" {
+		allChecksSuccess := true
+
+		for _, c := range checks {
+			if c.Conclusion != "success" {
+				allChecksSuccess = false
+				break
+			}
+		}
+
+		if !allChecksSuccess { // looks like it requires intervention from us
+			return &CanMerge{
+				Checks:     checks,
+				StatusText: StatusTextFail,
+			}, nil
+		}
+
+		return &CanMerge{ // it means that ci is passing, but there are branch constreins or review requested
+			Checks:     checks,
+			StatusText: StatusTextSuccess,
+		}, nil
+	}
+
+	return &CanMerge{
+		StatusText: "Unknown",
+		Reason:     "Unknown",
+		Checks:     checks,
+	}, nil
+}
+
+func (g *Github) getChecks(
+	ctx context.Context,
+	client *github.Client,
+	owner,
+	repo string,
+	sha string,
+) ([]*CheckStatus, error) {
 	opts := github.ListCheckRunsOptions{}
 	checkRuns, _, err := client.Checks.ListCheckRunsForRef(
 		ctx,
 		owner,
 		repo,
-		commitSHA.GetHead().GetSHA(),
+		sha,
 		&opts,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	checksStatus := make([]CheckStatus, len(checkRuns.CheckRuns))
+	checksStatus := make([]*CheckStatus, len(checkRuns.CheckRuns))
 	for i, checkRun := range checkRuns.CheckRuns {
-		checksStatus[i] = CheckStatus{
+		checksStatus[i] = &CheckStatus{
 			Name:       checkRun.GetName(),
 			State:      checkRun.GetStatus(),
 			Conclusion: checkRun.GetConclusion(),
 		}
 	}
-
-	fmt.Println(commitSHA.GetMergeable())
-	fmt.Println(commitSHA.GetMergeableState())
 
 	return checksStatus, nil
 }
