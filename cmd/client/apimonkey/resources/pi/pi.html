@@ -13,6 +13,19 @@
 </head>
 <body>
 <div id="app">
+    <div>
+        <div class="sdpi-item">
+            <button class="sdpi-item-value" @click="addParameterKey">Add New Parameter</button>
+        </div>
+        <div class="sdpi-item" v-for="record in parameters">
+            <input style="min-width:50%" class="sdpi-item-value sdProperty" v-model="record.key">
+            <input style="min-width:45%" class="sdpi-item-value sdProperty" v-model="record.value">
+        </div>
+    </div>
+    <div class="sdpi-item">
+        <button class="sdpi-item-value" @click="save">Save</button>
+    </div>
+    <hr>
     <div class="sdpi-item" id="select_single">
         <div class="sdpi-item-label">Request Type</div>
         <select class="sdpi-item-value select sdProperty" v-model="config.methodType">
@@ -55,12 +68,11 @@
         </div>
     </div>
     <hr>
-    <hr>
     <div>
         <div class="sdpi-item">
-            <button class="sdpi-item-value" @click="addParameterKey">Add New Parameter</button>
+            <button class="sdpi-item-value" @click="addHeadersKey">Add Header</button>
         </div>
-        <div class="sdpi-item" v-for="record in parameters">
+        <div class="sdpi-item" v-for="record in headers">
             <input style="min-width:50%" class="sdpi-item-value sdProperty" v-model="record.key">
             <input style="min-width:45%" class="sdpi-item-value sdProperty" v-model="record.value">
         </div>
@@ -84,9 +96,13 @@
             addParameterKey() {
                 this.parameters.push({})
             },
+            addHeadersKey() {
+                this.headers.push({})
+            },
             save() {
                 this.config.responseMapper = {}
                 this.config.parameters = {}
+                this.config.headers = {}
 
                 for (let record of this.responseMapping) {
                     if (!record.key || !record.value) {
@@ -101,6 +117,13 @@
                     }
 
                     this.config.parameters[record.key] = record.value
+                }
+                for (let record of this.headers) {
+                    if (!record.key || !record.value) {
+                        continue
+                    }
+
+                    this.config.headers[record.key] = record.value
                 }
 
                 const json = JSON.stringify({
@@ -120,6 +143,7 @@
                 this.config = window.actionInfo.payload.settings
                 this.responseMapping = []
                 this.parameters = []
+                this.headers = []
 
                 if (this.config.responseMapper) {
                     for (let key of Object.keys(this.config.responseMapper)) {
@@ -137,13 +161,22 @@
                         })
                     }
                 }
+                if (this.config.headers) {
+                    for (let key of Object.keys(this.config.headers)) {
+                        this.headers.push({
+                            key: key,
+                            value: this.config.headers[key]
+                        })
+                    }
+                }
             });
         },
         data() {
             return {
                 config: {},
                 responseMapping: [],
-                parameters: []
+                parameters: [],
+                headers: []
             }
         }
     }).mount('#app')

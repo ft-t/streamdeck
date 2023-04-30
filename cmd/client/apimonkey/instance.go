@@ -68,8 +68,13 @@ func (i *Instance) Run() {
 		func() {
 			apiUrl := runTemplate(i.cfg.ApiUrl, i.cfg)
 			lg.Debug().Msgf("sending request to %v", apiUrl)
-			resp, err := req.C().NewRequest().Get(apiUrl)
+			httpReq := req.C().NewRequest()
 
+			for k, v := range i.cfg.Headers {
+				httpReq.SetHeader(k, runTemplate(v, i.cfg))
+			}
+
+			resp, err := httpReq.Get(apiUrl)
 			if err != nil {
 				sdk.ShowAlert(i.contextApp)
 				lg.Err(errors.Wrap(err, "error sending request")).Send()
@@ -174,7 +179,6 @@ func (i *Instance) handleResponse(response string) {
 				imageData = fmt.Sprintf("data:image/svg+xml;charset=utf8,%v", string(fileData))
 			}
 
-			lg.Info().Msgf("seding to image %v", fileData)
 			sdk.SetImage(i.contextApp, imageData, 0)
 		}
 
