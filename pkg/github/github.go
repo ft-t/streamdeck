@@ -63,40 +63,32 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, erro
 		}, nil
 	}
 
-	if pr.GetMergeableState() == "unstable" {
+	allChecksSuccess := true
+
+	for _, c := range checks {
+		if c.Conclusion != "success" {
+			allChecksSuccess = false
+			break
+		}
+	}
+
+	if pr.GetMergeableState() == "unstable" && allChecksSuccess {
 		return &CanMerge{
 			Checks:     checks,
 			StatusText: StatusTextWorkflowRunning,
 		}, nil
 	}
 
-	if pr.GetMergeableState() == "blocked" || pr.GetMergeableState() == "dirty" {
-		allChecksSuccess := true
-
-		for _, c := range checks {
-			if c.Conclusion != "success" {
-				allChecksSuccess = false
-				break
-			}
-		}
-
-		if !allChecksSuccess { // looks like it requires intervention from us
-			return &CanMerge{
-				Checks:     checks,
-				StatusText: StatusTextFail,
-			}, nil
-		}
-
-		return &CanMerge{ // it means that ci is passing, but there are branch constreins or review requested
+	if !allChecksSuccess { // looks like it requires intervention from us
+		return &CanMerge{
 			Checks:     checks,
-			StatusText: StatusTextSuccess,
+			StatusText: StatusTextFail,
 		}, nil
 	}
 
-	return &CanMerge{
-		StatusText: "Unknown",
-		Reason:     "Unknown",
+	return &CanMerge{ // it means that ci is passing, but there are branch constreins or review requested
 		Checks:     checks,
+		StatusText: StatusTextSuccess,
 	}, nil
 }
 
