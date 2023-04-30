@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/imroc/req/v3"
@@ -16,6 +18,27 @@ import (
 )
 
 var isJobRunning = false
+
+func runTemplate(input string) string {
+	if len(globalConfig.TemplateParameters) == 0 || len(input) == 0 {
+		return input
+	}
+
+	parsed, err := template.New("any").Parse(input)
+	if err != nil {
+		lg.Err(errors.Wrapf(err, "can not parse template - %v", err))
+		return input
+	}
+
+	var buf bytes.Buffer
+
+	if err = parsed.Execute(&buf, globalConfig.TemplateParameters); err != nil {
+		lg.Err(errors.Wrapf(err, "can not parse template - %v", err))
+		return input
+	}
+
+	return buf.String()
+}
 
 func process() {
 	if isJobRunning {
@@ -31,8 +54,9 @@ func process() {
 		}
 
 		func() {
-			lg.Debug().Msgf("sending request to %v", globalConfig.ApiUrl)
-			resp, err := req.C().NewRequest().Get(globalConfig.ApiUrl)
+			apiUrl := runTemplate(globalConfig.ApiUrl)
+			lg.Debug().Msgf("sending request to %v", apiUrl)
+			resp, err := req.C().NewRequest().Get(apiUrl)
 
 			if err != nil {
 				sdk.ShowAlert(contextApp)
@@ -81,8 +105,9 @@ func process() {
 
 func handleResponse(response string) {
 	var sb strings.Builder
-	if globalConfig.TitlePrefix != "" {
-		sb.WriteString(strings.ReplaceAll(globalConfig.TitlePrefix, "\\n", "\n") + "\n")
+	prefix := runTemplate(globalConfig.TitlePrefix)
+	if prefix != "" {
+		sb.WriteString(strings.ReplaceAll(prefix, "\\n", "\n") + "\n")
 	}
 
 	if len(globalConfig.ResponseMapper) == 0 {

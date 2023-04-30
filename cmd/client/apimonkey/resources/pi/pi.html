@@ -51,7 +51,18 @@
         </div>
         <div class="sdpi-item" v-for="record in responseMapping">
             <input style="min-width:50%" class="sdpi-item-value sdProperty" v-model="record.key">
-            <input style="min-width:48%" class="sdpi-item-value sdProperty" v-model="record.value">
+            <input style="min-width:45%" class="sdpi-item-value sdProperty" v-model="record.value">
+        </div>
+    </div>
+    <hr>
+    <hr>
+    <div>
+        <div class="sdpi-item">
+            <button class="sdpi-item-value" @click="addParameterKey">Add New Parameter</button>
+        </div>
+        <div class="sdpi-item" v-for="record in parameters">
+            <input style="min-width:50%" class="sdpi-item-value sdProperty" v-model="record.key">
+            <input style="min-width:45%" class="sdpi-item-value sdProperty" v-model="record.value">
         </div>
     </div>
     <hr>
@@ -70,14 +81,26 @@
             addMapperKey() {
                 this.responseMapping.push({})
             },
+            addParameterKey() {
+                this.parameters.push({})
+            },
             save() {
                 this.config.responseMapper = {}
+                this.config.parameters = {}
+
                 for (let record of this.responseMapping) {
                     if (!record.key || !record.value) {
                         continue
                     }
 
                     this.config.responseMapper[record.key] = record.value
+                }
+                for (let record of this.parameters) {
+                    if (!record.key || !record.value) {
+                        continue
+                    }
+
+                    this.config.parameters[record.key] = record.value
                 }
 
                 const json = JSON.stringify({
@@ -87,8 +110,8 @@
                 });
                 websocket.send(json);
 
-                let event = new Event('settingsUpdated');
-                document.dispatchEvent(event);
+                // let event = new Event('settingsUpdated');
+                // document.dispatchEvent(event);
             }
         },
         mounted() {
@@ -96,6 +119,8 @@
             document.addEventListener('websocketCreate', () => {
                 this.config = window.actionInfo.payload.settings
                 this.responseMapping = []
+                this.parameters = []
+
                 if (this.config.responseMapper) {
                     for (let key of Object.keys(this.config.responseMapper)) {
                         this.responseMapping.push({
@@ -104,12 +129,21 @@
                         })
                     }
                 }
+                if (this.config.parameters) {
+                    for (let key of Object.keys(this.config.parameters)) {
+                        this.parameters.push({
+                            key: key,
+                            value: this.config.parameters[key]
+                        })
+                    }
+                }
             });
         },
         data() {
             return {
                 config: {},
-                responseMapping: []
+                responseMapping: [],
+                parameters: []
             }
         }
     }).mount('#app')

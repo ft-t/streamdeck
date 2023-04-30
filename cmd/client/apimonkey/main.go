@@ -68,6 +68,8 @@ func main() {
 			targetUrl = globalConfig.ApiUrl
 		}
 
+		targetUrl = runTemplate(targetUrl)
+
 		if err := exec.Command("rundll32",
 			"url.dll,FileProtocolHandler", targetUrl).Start(); err != nil {
 
