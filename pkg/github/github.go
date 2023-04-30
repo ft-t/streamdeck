@@ -22,7 +22,7 @@ func NewGithub(apiKey string) *Github {
 	}
 }
 
-func (g *Github) GetPullStatus(ctx context.Context, url string) (interface{}, error) {
+func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, error) {
 	owner, repo, prNum, err := g.parsePRURL(url)
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing PR URL")

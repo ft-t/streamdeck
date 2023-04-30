@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -13,9 +13,14 @@ import (
 func main() {
 	app := fiber.New()
 
+	listenAddr := ":8080"
+	if val, ok := os.LookupEnv("FUNCTIONS_CUSTOMHANDLER_PORT"); ok {
+		listenAddr = ":" + val
+	}
+
 	githubSvc := github2.NewGithub(os.Getenv("GITHUB_API_TOKEN"))
 
-	app.Get("/github/pr/status", func(c *fiber.Ctx) error {
+	app.Get("/api/github/pr/status", func(c *fiber.Ctx) error {
 		prUrl := c.Query("url")
 
 		status, err := githubSvc.GetPullStatus(c.Context(), prUrl)
@@ -24,9 +29,9 @@ func main() {
 			return c.SendString(err.Error())
 		}
 
-		fmt.Println(status)
-		return c.SendString("Hello, World 👋!")
+		return c.JSON(status)
 	})
 
-	app.Listen(":3000")
+	log.Printf("About to listen on %s. Go to http://0.0.0.0%s/", listenAddr, listenAddr)
+	app.Listen(listenAddr)
 }
