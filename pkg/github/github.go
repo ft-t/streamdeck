@@ -56,6 +56,15 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, erro
 		}, nil
 	}
 
+	for _, c := range checks {
+		if c.State == "in_progress" || c.State == "queued" {
+			return &CanMerge{
+				Checks:     checks,
+				StatusText: StatusTextWorkflowRunning,
+			}, nil
+		}
+	}
+
 	if pr.GetMergeableState() == "clean" {
 		return &CanMerge{
 			Checks:     checks,
@@ -64,19 +73,11 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, erro
 	}
 
 	allChecksSuccess := true
-
 	for _, c := range checks {
 		if c.Conclusion != "success" {
 			allChecksSuccess = false
 			break
 		}
-	}
-
-	if pr.GetMergeableState() == "unstable" && allChecksSuccess {
-		return &CanMerge{
-			Checks:     checks,
-			StatusText: StatusTextWorkflowRunning,
-		}, nil
 	}
 
 	if !allChecksSuccess { // looks like it requires intervention from us
