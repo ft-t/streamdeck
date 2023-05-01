@@ -10,6 +10,7 @@ const (
 	StatusTextNone            = "none"
 	StatusTextSuccess         = "success"
 	StatusTextFail            = "fail"
+	StatusTextMerged          = "merged"
 	StatusTextWorkflowRunning = "running-workflow"
 )
 

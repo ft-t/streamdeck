@@ -89,6 +89,7 @@ func main() {
 	if err != nil {
 		lg.Panic().Err(err).Send()
 	}
+	// run
 
 	// Wait until the socket is closed, or SIGTERM/SIGINT is received
 	sdk.Wait()
