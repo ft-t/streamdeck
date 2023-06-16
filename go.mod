@@ -9,6 +9,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.29.1
 	github.com/stretchr/testify v1.8.2
+	github.com/valyala/fastjson v1.6.3
 	golang.org/x/oauth2 v0.7.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	meow.tf/streamdeck/sdk v0.0.0-20221205105203-dab3b98dc3bd
@@ -44,7 +45,6 @@ require (
 	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.45.0 // indirect
-	github.com/valyala/fastjson v1.6.3 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53 // indirect
