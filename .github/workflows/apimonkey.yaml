@@ -1,5 +1,7 @@
 on:
-  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   ci:
@@ -14,7 +16,7 @@ jobs:
         with:
           draft: false
           prerelease: false
-          release_name: ${{ steps.version.outputs.version }}-apimonkey
+          release_name: v.0.1.${{ github.run_number }}-apimonkey
           tag_name: v.0.1.${{ github.run_number }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
