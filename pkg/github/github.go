@@ -10,6 +10,8 @@ import (
 	"github.com/google/go-github/v38/github"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
+
+	"github.com/ft-t/streamdeck/pkg/types"
 )
 
 type Github struct {
@@ -22,7 +24,7 @@ func NewGithub(apiKey string) *Github {
 	}
 }
 
-func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, error) {
+func (g *Github) GetPullStatus(ctx context.Context, url string) (*types.CanMerge, error) {
 	owner, repo, prNum, err := g.parsePRURL(url)
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing PR URL")
@@ -49,15 +51,15 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, erro
 	}
 
 	if pr.GetMerged() {
-		return &CanMerge{
+		return &types.CanMerge{
 			Checks:     checks,
-			StatusText: StatusTextMerged,
+			StatusText: types.StatusTextMerged,
 		}, nil
 	}
 
 	if !pr.GetMergeable() {
-		return &CanMerge{
-			StatusText: StatusTextFail,
+		return &types.CanMerge{
+			StatusText: types.StatusTextFail,
 			Reason:     fmt.Sprintf("Mergable - false. MergableState - %v", pr.GetMergeableState()),
 			Checks:     checks,
 		}, nil
@@ -65,17 +67,17 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, erro
 
 	for _, c := range checks {
 		if c.State == "in_progress" || c.State == "queued" {
-			return &CanMerge{
+			return &types.CanMerge{
 				Checks:     checks,
-				StatusText: StatusTextWorkflowRunning,
+				StatusText: types.StatusTextWorkflowRunning,
 			}, nil
 		}
 	}
 
 	if pr.GetMergeableState() == "clean" {
-		return &CanMerge{
+		return &types.CanMerge{
 			Checks:     checks,
-			StatusText: StatusTextSuccess,
+			StatusText: types.StatusTextSuccess,
 		}, nil
 	}
 
@@ -88,15 +90,15 @@ func (g *Github) GetPullStatus(ctx context.Context, url string) (*CanMerge, erro
 	}
 
 	if !allChecksSuccess { // looks like it requires intervention from us
-		return &CanMerge{
+		return &types.CanMerge{
 			Checks:     checks,
-			StatusText: StatusTextFail,
+			StatusText: types.StatusTextFail,
 		}, nil
 	}
 
-	return &CanMerge{ // it means that ci is passing, but there are branch constreins or review requested
+	return &types.CanMerge{ // it means that ci is passing, but there are branch constreins or review requested
 		Checks:     checks,
-		StatusText: StatusTextSuccess,
+		StatusText: types.StatusTextSuccess,
 	}, nil
 }
 
@@ -106,7 +108,7 @@ func (g *Github) getChecks(
 	owner,
 	repo string,
 	sha string,
-) ([]*CheckStatus, error) {
+) ([]*types.CheckStatus, error) {
 	opts := github.ListCheckRunsOptions{}
 	checkRuns, _, err := client.Checks.ListCheckRunsForRef(
 		ctx,
@@ -119,9 +121,9 @@ func (g *Github) getChecks(
 		return nil, err
 	}
 
-	checksStatus := make([]*CheckStatus, len(checkRuns.CheckRuns))
+	checksStatus := make([]*types.CheckStatus, len(checkRuns.CheckRuns))
 	for i, checkRun := range checkRuns.CheckRuns {
-		checksStatus[i] = &CheckStatus{
+		checksStatus[i] = &types.CheckStatus{
 			Name:       checkRun.GetName(),
 			State:      checkRun.GetStatus(),
 			Conclusion: checkRun.GetConclusion(),
