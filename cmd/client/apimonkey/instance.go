@@ -98,16 +98,11 @@ func (i *Instance) Run() {
 					return
 				}
 
-				if selectorVal.Type == gjson.String {
-					if str := selectorVal.String(); str != "" {
-						sdk.ShowAlert(i.contextApp)
-						lg.Err(errors.Wrap(err, "error parsing StringBytes")).Send()
-						return
-					} else {
-						value = str
-					}
-				} else {
-					value = selectorVal.String()
+				value = selectorVal.String()
+
+				if value == "" {
+					sdk.ShowAlert(i.contextApp)
+					lg.Err(errors.Wrap(err, "empty value got from ResponseJSONSelector")).Send()
 				}
 			}
 
