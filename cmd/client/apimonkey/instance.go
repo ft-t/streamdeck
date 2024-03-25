@@ -12,7 +12,7 @@ import (
 	"github.com/imroc/req/v3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/valyala/fastjson"
+	"github.com/tidwall/gjson"
 	"meow.tf/streamdeck/sdk"
 )
 
@@ -82,36 +82,36 @@ func (i *Instance) Run() {
 			}
 
 			lg.Debug().Msgf("got raw response %v", resp.String())
-			parsed, err := fastjson.ParseBytes(resp.Bytes())
 			if err != nil {
 				sdk.ShowAlert(i.contextApp)
 				lg.Err(errors.Wrap(err, "error parsing request")).Send()
 				return
 			}
 
-			value := parsed.String()
+			value := resp.String()
 			if i.cfg.ResponseJSONSelector != "" {
-				selectorVal := parsed.Get(i.cfg.ResponseJSONSelector)
-				if selectorVal == nil || selectorVal.Type() == fastjson.TypeNull {
+				selectorVal := gjson.Get(resp.String(), i.cfg.ResponseJSONSelector)
+
+				if selectorVal.Type == gjson.Null {
 					sdk.ShowAlert(i.contextApp)
 					lg.Err(errors.New("no data found by ResponseJSONSelector")).Send()
 					return
 				}
 
-				if selectorVal.Type() == fastjson.TypeString {
-					if s, errSBytes := selectorVal.StringBytes(); errSBytes != nil {
+				if selectorVal.Type == gjson.String {
+					if str := selectorVal.String(); str != "" {
 						sdk.ShowAlert(i.contextApp)
 						lg.Err(errors.Wrap(err, "error parsing StringBytes")).Send()
 						return
 					} else {
-						value = string(s)
+						value = str
 					}
 				} else {
 					value = selectorVal.String()
 				}
 			}
 
-			lg.Debug().Msgf("got raw value %v", string(value))
+			lg.Debug().Msgf("got raw value %v", value)
 
 			i.handleResponse(value)
 		}()

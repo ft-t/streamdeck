@@ -16,9 +16,6 @@ var lg zerolog.Logger
 var instances = map[string]*Instance{}
 var mut sync.Mutex
 
-//var contextApp string
-//var globalConfig *config
-
 func setSettingsFromPayload(payload *fastjson.Value, ctxId string, instance *Instance) {
 	if instance == nil {
 		lg.Warn().Msgf("instance %v not found", ctxId)
@@ -39,7 +36,7 @@ func setSettingsFromPayload(payload *fastjson.Value, ctxId string, instance *Ins
 func main() {
 	logFile := &lumberjack.Logger{
 		Filename:   "logs/log.log",
-		MaxSize:    100,
+		MaxSize:    30,
 		MaxBackups: 3,
 		MaxAge:     10,
 		Compress:   false,

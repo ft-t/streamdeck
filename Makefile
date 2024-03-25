@@ -15,3 +15,11 @@ build-githubmonkey:
 .PHONY: azure-githubmonkey
 azure-githubmonkey: build-githubmonkey
 	@cd cmd/server/githubmonkey/.azure && cp -a . ../dist/
+
+.PHONY: tidy-modules
+tidy-modules:
+	@find . -type d \( -name build -prune \) -o -name go.mod -print | while read -r gomod_path; do \
+		dir_path=$$(dirname "$$gomod_path"); \
+		echo "Executing 'go mod tidy' in directory: $$dir_path"; \
+		(cd "$$dir_path" && GOPROXY=$(GOPROXY) go mod tidy) || exit 1; \
+	done
