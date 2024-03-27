@@ -16,8 +16,8 @@ jobs:
         with:
           draft: false
           prerelease: false
-          release_name: v.0.1.${{ github.run_number }}-apimonkey
-          tag_name: v.0.1.${{ github.run_number }}
+          release_name: v.0.2.${{ github.run_number }}-apimonkey
+          tag_name: v.0.2.${{ github.run_number }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: upload windows artifact
