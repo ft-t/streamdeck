@@ -117,7 +117,7 @@ func (i *Instance) run() {
 
 		if processErr != nil {
 			lg.Err(errors.Wrap(processErr, "error processing response")).Send()
-			sdk.ShowAlert(i.contextApp)
+			i.ShowAlert()
 		} else {
 			if i.cfg.ShowSuccessNotification {
 				sdk.ShowOk(i.contextApp)
@@ -214,7 +214,6 @@ func (i *Instance) handleResponse(_ context.Context, response string) error {
 
 		sdk.SetTitle(i.contextApp, sb.String(), 0)
 		sdk.SetImage(i.contextApp, "", 0)
-		sdk.ShowAlert(i.contextApp)
 
 		return errors.Newf("response mapper not found for value - %v", response)
 	}
@@ -229,7 +228,6 @@ func (i *Instance) handleResponse(_ context.Context, response string) error {
 
 			if err != nil {
 				sdk.SetImage(i.contextApp, "", 0)
-				sdk.ShowAlert(i.contextApp)
 				return errors.Join(err, errors.New("image file not found"))
 			}
 
