@@ -23,7 +23,7 @@
         </div>
     </div>
     <div class="sdpi-item">
-        <button class="sdpi-item-value" @click="save">Save</button>
+        <button class="sdpi-item-value" @click="save">Save All</button>
     </div>
     <hr>
     <div class="sdpi-item" id="select_single">
@@ -53,17 +53,30 @@
         <input class="sdpi-item-value sdProperty" type="number" v-model="config.intervalSeconds">
     </div>
     <div class="sdpi-item">
-        <div class="sdpi-item-label">Show Success Notification</div>
-        <input class="sdpi-item-value sdProperty" type="checkbox" v-model="config.showSuccessNotification">
+        <div class="sdpi-item-label">Indicator</div>
+        <div type="checkbox" class="sdpi-item">
+            <div class="sdpi-item-value">
+                <input id="showSuccessNotification" class="sdProperty sdCheckbox" type="checkbox" v-model="config.showSuccessNotification">
+                <label for="showSuccessNotification" class="sdpi-item-label"><span></span>Show Success</label>
+            </div>
+        </div>
+        <div class="sdpi-item-value">
+            <input class="sdProperty sdCheckbox" type="checkbox" v-model="config.showSuccessNotification">
+        </div>
     </div>
     <hr>
+    <div class="sdpi-item">
+        <button class="sdpi-item-value" @click="save">Save All</button>
+    </div>
     <div class="sdpi-item">
         <div class="sdpi-item-label">JSON Selector</div>
         <input class="sdpi-item-value sdProperty" v-model="config.responseJSONSelector">
     </div>
-    <div class="sdpi-item">
+    <div type="textarea" class="sdpi-item">
         <div class="sdpi-item-label">Lua Script</div>
-        <input class="sdpi-item-value sdProperty" v-model="config.bodyScript">
+        <span class="sdpi-item-value textarea">
+            <textarea type="textarea" class="sdProperty" v-model="config.bodyScript"></textarea>
+        </span>
     </div>
     <hr>
     <div>
@@ -87,7 +100,7 @@
     </div>
     <hr>
     <div class="sdpi-item">
-        <button class="sdpi-item-value" @click="save">Save</button>
+        <button class="sdpi-item-value" @click="save">Save All</button>
     </div>
 </div>
 
