@@ -23,3 +23,7 @@ tidy-modules:
 		echo "Executing 'go mod tidy' in directory: $$dir_path"; \
 		(cd "$$dir_path" && GOPROXY=$(GOPROXY) go mod tidy) || exit 1; \
 	done
+
+.PHONY: lint
+lint:
+	golangci-lint run

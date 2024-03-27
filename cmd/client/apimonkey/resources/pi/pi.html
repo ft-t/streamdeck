@@ -52,10 +52,18 @@
         <div class="sdpi-item-label">Interval (Sec)</div>
         <input class="sdpi-item-value sdProperty" type="number" v-model="config.intervalSeconds">
     </div>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Show Success Notification</div>
+        <input class="sdpi-item-value sdProperty" type="checkbox" v-model="config.showSuccessNotification">
+    </div>
     <hr>
     <div class="sdpi-item">
         <div class="sdpi-item-label">JSON Selector</div>
         <input class="sdpi-item-value sdProperty" v-model="config.responseJSONSelector">
+    </div>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Lua Script</div>
+        <input class="sdpi-item-value sdProperty" v-model="config.bodyScript">
     </div>
     <hr>
     <div>

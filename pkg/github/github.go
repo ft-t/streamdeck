@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/google/go-github/v38/github"
-	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 

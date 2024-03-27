@@ -7,10 +7,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
+	"github.com/google/uuid"
 	"github.com/imroc/req/v3"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
 	"meow.tf/streamdeck/sdk"
@@ -20,6 +22,22 @@ type Instance struct {
 	cfg        *config
 	contextApp string
 	lg         zerolog.Logger
+	executor   ScriptExecutor
+	ctx        context.Context
+	ctxCancel  context.CancelFunc
+	mut        sync.Mutex
+}
+
+func NewInstance(
+	contextApp string,
+	executor ScriptExecutor,
+) *Instance {
+	return &Instance{
+		contextApp: contextApp,
+		lg:         lg.With().Str("context_id", contextApp).Logger(),
+		executor:   executor,
+		mut:        sync.Mutex{},
+	}
 }
 
 func (i *Instance) SetConfig(ctxId string, cfg *config) {
@@ -58,64 +76,114 @@ func (i *Instance) KeyPressed() {
 	}
 }
 
-func (i *Instance) Run() {
-	for context.Background().Err() == nil {
+func (i *Instance) StartAsync() {
+	i.mut.Lock()
+	if i.ctxCancel != nil { // first cancel old routine
+		i.ctxCancel()
+	}
+
+	i.ctx, i.ctxCancel = context.WithCancel(context.Background())
+	i.mut.Unlock()
+
+	go i.run()
+}
+
+func (i *Instance) Stop() {
+	i.mut.Lock()
+
+	if i.ctxCancel != nil { // first cancel old routine
+		i.ctxCancel()
+	}
+	i.ctxCancel = nil
+
+	i.mut.Unlock()
+}
+
+func (i *Instance) run() {
+	ctx := i.ctx
+
+	for ctx.Err() == nil {
 		interval := 30
 		if i.cfg.IntervalSeconds > 0 {
 			interval = i.cfg.IntervalSeconds
 		}
 
-		func() {
-			apiUrl := runTemplate(i.cfg.ApiUrl, i.cfg)
-			lg.Debug().Msgf("sending request to %v", apiUrl)
-			httpReq := req.C().NewRequest()
+		newLogger := lg.With().Str("id", uuid.NewString()).Logger()
+		innerCtx, innerCancel := context.WithCancel(ctx)
+		innerCtx = newLogger.WithContext(innerCtx)
 
-			for k, v := range i.cfg.Headers {
-				httpReq.SetHeader(k, runTemplate(v, i.cfg))
+		processErr := i.sendAndProcess(innerCtx)
+		innerCancel()
+
+		if processErr != nil {
+			lg.Err(errors.Wrap(processErr, "error processing response")).Send()
+			i.ShowAlert()
+		} else {
+			if i.cfg.ShowSuccessNotification {
+				sdk.ShowOk(i.contextApp)
 			}
-
-			resp, err := httpReq.Get(apiUrl)
-			if err != nil {
-				sdk.ShowAlert(i.contextApp)
-				lg.Err(errors.Wrap(err, "error sending request")).Send()
-				return
-			}
-
-			lg.Debug().Msgf("got raw response %v", resp.String())
-			if err != nil {
-				sdk.ShowAlert(i.contextApp)
-				lg.Err(errors.Wrap(err, "error parsing request")).Send()
-				return
-			}
-
-			value := resp.String()
-			if i.cfg.ResponseJSONSelector != "" {
-				selectorVal := gjson.Get(resp.String(), i.cfg.ResponseJSONSelector)
-
-				if selectorVal.Type == gjson.Null {
-					sdk.ShowAlert(i.contextApp)
-					lg.Err(errors.New("no data found by ResponseJSONSelector")).Send()
-					return
-				}
-
-				value = selectorVal.String()
-
-				if value == "" {
-					sdk.ShowAlert(i.contextApp)
-					lg.Err(errors.Wrap(err, "empty value got from ResponseJSONSelector")).Send()
-				}
-			}
-
-			lg.Debug().Msgf("got raw value %v", value)
-
-			i.handleResponse(value)
-		}()
+		}
 
 		time.Sleep(time.Duration(interval) * time.Second)
 	}
 }
 
-func (i *Instance) handleResponse(response string) {
+func (i *Instance) sendAndProcess(ctx context.Context) error {
+	apiUrl := runTemplate(i.cfg.ApiUrl, i.cfg)
+	httpReq := req.C().NewRequest()
+	httpReq = httpReq.SetContext(ctx)
+
+	for k, v := range i.cfg.Headers {
+		httpReq.SetHeader(k, runTemplate(v, i.cfg))
+	}
+
+	zerolog.Ctx(ctx).Trace().Str("url", apiUrl).Msg("sending request")
+	resp, err := httpReq.Get(apiUrl)
+	if err != nil {
+		return errors.Wrap(err, "error sending request")
+	}
+
+	value := resp.String()
+	zerolog.Ctx(ctx).Debug().Str("response", value).Msg("got raw response")
+
+	if strings.TrimSpace(i.cfg.BodyScript) != "" {
+		zerolog.Ctx(ctx).Trace().Str("script", i.cfg.BodyScript).Msg("executing script")
+
+		scriptResult, scriptErr := i.executor.Execute(ctx, i.cfg.BodyScript, value, resp.StatusCode)
+		if scriptErr != nil {
+			return errors.Wrap(scriptErr, "error executing script")
+		}
+
+		value = scriptResult
+
+		zerolog.Ctx(ctx).Trace().Str("result", value).Msg("script executed")
+	}
+
+	zerolog.Ctx(ctx).Debug().
+		Str("response", value).
+		Str("selector", i.cfg.ResponseJSONSelector).
+		Msg("post script processing")
+
+	if i.cfg.ResponseJSONSelector != "" {
+		selectorVal := gjson.Get(value, i.cfg.ResponseJSONSelector)
+
+		if selectorVal.Type == gjson.Null {
+			return errors.New("no data found by ResponseJSONSelector")
+		}
+
+		value = selectorVal.String()
+
+		if value == "" {
+			return errors.New("empty value got from ResponseJSONSelector")
+		}
+	}
+
+	zerolog.Ctx(ctx).Debug().Str("final_result", value).Msgf("final")
+
+	return i.handleResponse(ctx, value)
+}
+
+func (i *Instance) handleResponse(_ context.Context, response string) error {
 	var sb strings.Builder
 	prefix := runTemplate(i.cfg.TitlePrefix, i.cfg)
 	if prefix != "" {
@@ -131,9 +199,8 @@ func (i *Instance) handleResponse(response string) {
 
 		sdk.SetTitle(i.contextApp, sb.String(), 0)
 		sdk.SetImage(i.contextApp, "", 0)
-		sdk.ShowOk(i.contextApp)
 
-		return
+		return nil
 	}
 
 	mapped, ok := i.cfg.ResponseMapper[response]
@@ -147,9 +214,8 @@ func (i *Instance) handleResponse(response string) {
 
 		sdk.SetTitle(i.contextApp, sb.String(), 0)
 		sdk.SetImage(i.contextApp, "", 0)
-		sdk.ShowAlert(i.contextApp)
 
-		return
+		return errors.Newf("response mapper not found for value - %v", response)
 	}
 
 	if strings.HasPrefix(mapped, "http") || strings.HasSuffix(mapped, ".png") || strings.HasSuffix(mapped, ".svg") {
@@ -161,10 +227,8 @@ func (i *Instance) handleResponse(response string) {
 			fileData, err := readFile(filepath.Join("images", mapped))
 
 			if err != nil {
-				lg.Err(errors.Wrap(err, "image file not found")).Send()
 				sdk.SetImage(i.contextApp, "", 0)
-				sdk.ShowAlert(i.contextApp)
-				return
+				return errors.Join(err, errors.New("image file not found"))
 			}
 
 			imageData := ""
@@ -176,14 +240,11 @@ func (i *Instance) handleResponse(response string) {
 
 			sdk.SetImage(i.contextApp, imageData, 0)
 		}
-
-		sdk.ShowOk(i.contextApp)
 	} else {
 		sb.WriteString(mapped)
 		sdk.SetTitle(i.contextApp, sb.String(), 0)
 		sdk.SetImage(i.contextApp, "", 0)
-		sdk.ShowOk(i.contextApp)
-
-		return
 	}
+
+	return nil
 }
