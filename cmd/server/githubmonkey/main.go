@@ -33,5 +33,8 @@ func main() {
 	})
 
 	log.Printf("About to listen on %s. Go to http://0.0.0.0%s/", listenAddr, listenAddr)
-	app.Listen(listenAddr)
+
+	if err := app.Listen(listenAddr); err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
 }

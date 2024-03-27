@@ -9,6 +9,8 @@ import (
 	"github.com/valyala/fastjson"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"meow.tf/streamdeck/sdk"
+
+	"github.com/ft-t/streamdeck/cmd/scripts"
 )
 
 var lg zerolog.Logger
@@ -19,7 +21,9 @@ var mut sync.Mutex
 func setSettingsFromPayload(payload *fastjson.Value, ctxId string, instance *Instance) {
 	if instance == nil {
 		lg.Warn().Msgf("instance %v not found", ctxId)
+		return
 	}
+
 	settingsBytes := payload.MarshalTo(nil)
 	lg.Debug().Msgf("Got configuration: %v", string(settingsBytes))
 	var tempConfig config
@@ -51,19 +55,30 @@ func main() {
 
 		mut.Lock()
 		defer mut.Unlock()
-		instance, _ := instances[event.Context]
+		instance, ok := instances[event.Context]
 
-		if instance == nil {
-			instance = &Instance{
-				contextApp: event.Context,
-				lg:         lg.With().Str("context_id", event.Context).Logger(),
-			}
-
+		if !ok {
+			instance = NewInstance(event.Context, scripts.NewLua())
 			instances[event.Context] = instance
 		}
 
 		setSettingsFromPayload(event.Payload.Get("settings"), event.Context, instance)
-		go instance.Run()
+		instance.StartAsync()
+	})
+
+	sdk.AddHandler(func(event *sdk.WillDisappearEvent) {
+		if event.Payload == nil {
+			return
+		}
+
+		mut.Lock()
+		defer mut.Unlock()
+		instance, ok := instances[event.Context]
+		if !ok {
+			return
+		}
+
+		instance.StartAsync()
 	})
 
 	sdk.AddHandler(func(event *sdk.ReceiveSettingsEvent) {

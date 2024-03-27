@@ -5,7 +5,7 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/pkg/errors"
+	"github.com/cockroachdb/errors"
 )
 
 func runTemplate(input string, cfg *config) string {
