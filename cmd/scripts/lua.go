@@ -2,7 +2,9 @@ package scripts
 
 import (
 	"context"
+	"net/http"
 
+	"github.com/cjoudrey/gluahttp"
 	lua "github.com/yuin/gopher-lua"
 	luajson "layeh.com/gopher-json"
 )
@@ -23,6 +25,7 @@ func (e *Lua) Execute(
 	l := lua.NewState()
 	defer l.Close()
 	luajson.Preload(l)
+	l.PreloadModule("http", gluahttp.NewHttpModule(&http.Client{}).Loader)
 
 	l.SetGlobal("ResponseBody", lua.LString(rawBody))
 	l.SetGlobal("ResponseStatusCode", lua.LNumber(statusCode))

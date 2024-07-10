@@ -5,6 +5,7 @@ go 1.22
 toolchain go1.22.1
 
 require (
+	github.com/cjoudrey/gluahttp v0.0.0-20201111170219-25003d9adfa9
 	github.com/cockroachdb/errors v1.11.1
 	github.com/gofiber/fiber/v2 v2.52.2
 	github.com/google/go-github/v38 v38.1.0
