@@ -149,7 +149,14 @@ func (i *Instance) sendAndProcess(ctx context.Context) error {
 	if strings.TrimSpace(i.cfg.BodyScript) != "" {
 		zerolog.Ctx(ctx).Trace().Str("script", i.cfg.BodyScript).Msg("executing script")
 
-		scriptResult, scriptErr := i.executor.Execute(ctx, i.cfg.BodyScript, value, resp.StatusCode)
+		scriptResult, scriptErr := i.executor.Execute(
+			ctx,
+			i.cfg.BodyScript,
+			value,
+			resp.StatusCode,
+			i.cfg.Headers,
+			i.cfg.TemplateParameters,
+		)
 		if scriptErr != nil {
 			return errors.Wrap(scriptErr, "error executing script")
 		}
