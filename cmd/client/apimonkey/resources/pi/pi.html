@@ -26,6 +26,17 @@
         <button class="sdpi-item-value" @click="save">Save All</button>
     </div>
     <hr>
+    <div class="sdpi-item" id="select_single2">
+        <div class="sdpi-item-label">Log Level</div>
+        <select class="sdpi-item-value select sdProperty" v-model="config.logLevel">
+            <option value="3">Error</option>
+            <option value="2" selected>Warn</option>
+            <option value="1">Info</option>
+            <option value="0">Debug</option>
+            <option value="-1">Trace</option>
+        </select>
+    </div>
+    <hr>
     <div class="sdpi-item" id="select_single">
         <div class="sdpi-item-label">Request Type</div>
         <select class="sdpi-item-value select sdProperty" v-model="config.methodType">

@@ -13,23 +13,27 @@ import (
 	"github.com/ft-t/streamdeck/cmd/scripts"
 )
 
-var lg zerolog.Logger
-
 var instances = map[string]*Instance{}
 var mut sync.Mutex
 
-func setSettingsFromPayload(payload *fastjson.Value, ctxId string, instance *Instance) {
+func setSettingsFromPayload(
+	payload *fastjson.Value,
+	ctxId string,
+	instance *Instance,
+) {
+	logger := instance.GetLogger()
+
 	if instance == nil {
-		lg.Warn().Msgf("instance %v not found", ctxId)
+		logger.Warn().Msgf("instance %v not found", ctxId)
 		return
 	}
 
 	settingsBytes := payload.MarshalTo(nil)
-	lg.Debug().Msgf("Got configuration: %v", string(settingsBytes))
+	logger.Trace().Msgf("Got configuration: %v", string(settingsBytes))
 	var tempConfig config
 
 	if err := json.Unmarshal(settingsBytes, &tempConfig); err != nil {
-		lg.Err(err).Send()
+		logger.Err(err).Send()
 		instance.ShowAlert()
 		return
 	}
@@ -46,7 +50,7 @@ func main() {
 		Compress:   false,
 	}
 
-	lg = zerolog.New(zerolog.MultiLevelWriter(os.Stdout, logFile)).With().Timestamp().Logger()
+	lg := zerolog.New(zerolog.MultiLevelWriter(os.Stdout, logFile)).With().Timestamp().Logger()
 
 	sdk.AddHandler(func(event *sdk.WillAppearEvent) {
 		if event.Payload == nil {
@@ -58,7 +62,7 @@ func main() {
 		instance, ok := instances[event.Context]
 
 		if !ok {
-			instance = NewInstance(event.Context, scripts.NewLua())
+			instance = NewInstance(event.Context, scripts.NewLua(), lg)
 			instances[event.Context] = instance
 		}
 
