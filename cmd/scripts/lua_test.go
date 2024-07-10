@@ -36,3 +36,29 @@ func TestLuaWithHeadersAndTemplate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello, world!SomeValuevalue1", resp)
 }
+
+func TestHandleArray(t *testing.T) {
+	executor := scripts.NewLua()
+
+	resp, err := executor.Execute(context.TODO(), `
+		local json = require("json")
+   	    local data2, pos2, err2 = json.decode(_G.ResponseBody, 1, nil)
+
+		return data2["values"][1]["state"]`,
+		`{
+  "values": [
+    {
+      "state": "SUCCESSFUL"
+    }
+  ],
+  "pagelen": 10,
+  "size": 1,
+  "page": 1
+}`,
+		200,
+		nil,
+		nil,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, "SUCCESSFUL", resp)
+}

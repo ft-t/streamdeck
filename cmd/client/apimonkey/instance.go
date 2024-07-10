@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/google/uuid"
 	"github.com/imroc/req/v3"
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
@@ -19,25 +18,30 @@ import (
 )
 
 type Instance struct {
-	cfg        *config
-	contextApp string
-	lg         zerolog.Logger
-	executor   ScriptExecutor
-	ctx        context.Context
-	ctxCancel  context.CancelFunc
-	mut        sync.Mutex
+	cfg           *config
+	contextApp    string
+	currentLogger zerolog.Logger
+	executor      ScriptExecutor
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
+	mut           sync.Mutex
 }
 
 func NewInstance(
 	contextApp string,
 	executor ScriptExecutor,
+	logger zerolog.Logger,
 ) *Instance {
 	return &Instance{
-		contextApp: contextApp,
-		lg:         lg.With().Str("context_id", contextApp).Logger(),
-		executor:   executor,
-		mut:        sync.Mutex{},
+		contextApp:    contextApp,
+		currentLogger: logger.With().Str("context_id", contextApp).Logger(),
+		executor:      executor,
+		mut:           sync.Mutex{},
 	}
+}
+
+func (i *Instance) GetLogger() zerolog.Logger {
+	return i.currentLogger
 }
 
 func (i *Instance) SetConfig(ctxId string, cfg *config) {
@@ -46,7 +50,12 @@ func (i *Instance) SetConfig(ctxId string, cfg *config) {
 	}
 
 	i.cfg = cfg
-	lg.Debug().Msg("set config")
+
+	if i.cfg.MinLogLevel != nil {
+		i.currentLogger = i.currentLogger.Level(*i.cfg.MinLogLevel)
+	} else {
+		i.currentLogger = i.currentLogger.Level(zerolog.WarnLevel)
+	}
 }
 
 func (i *Instance) ShowAlert() {
@@ -55,7 +64,7 @@ func (i *Instance) ShowAlert() {
 
 func (i *Instance) KeyPressed() {
 	if i.cfg == nil {
-		lg.Error().Msg("global config not set")
+		i.currentLogger.Error().Msg("global config not set")
 		sdk.ShowAlert(i.contextApp)
 		return
 	}
@@ -65,12 +74,12 @@ func (i *Instance) KeyPressed() {
 		targetUrl = i.cfg.ApiUrl
 	}
 
-	targetUrl = runTemplate(targetUrl, i.cfg)
+	targetUrl = runTemplate(targetUrl, i.cfg, i.currentLogger)
 
 	if err := exec.Command("rundll32",
 		"url.dll,FileProtocolHandler", targetUrl).Start(); err != nil {
 
-		lg.Error().Msg("global config not set")
+		i.currentLogger.Error().Msg("global config not set")
 		sdk.ShowAlert(i.contextApp)
 		return
 	}
@@ -108,15 +117,14 @@ func (i *Instance) run() {
 			interval = i.cfg.IntervalSeconds
 		}
 
-		newLogger := lg.With().Str("id", uuid.NewString()).Logger()
 		innerCtx, innerCancel := context.WithCancel(ctx)
-		innerCtx = newLogger.WithContext(innerCtx)
+		innerCtx = i.currentLogger.WithContext(innerCtx)
 
 		processErr := i.sendAndProcess(innerCtx)
 		innerCancel()
 
 		if processErr != nil {
-			lg.Err(errors.Wrap(processErr, "error processing response")).Send()
+			i.currentLogger.Err(errors.Wrap(processErr, "error processing response")).Send()
 			i.ShowAlert()
 		} else {
 			if i.cfg.ShowSuccessNotification {
@@ -129,12 +137,12 @@ func (i *Instance) run() {
 }
 
 func (i *Instance) sendAndProcess(ctx context.Context) error {
-	apiUrl := runTemplate(i.cfg.ApiUrl, i.cfg)
+	apiUrl := runTemplate(i.cfg.ApiUrl, i.cfg, i.currentLogger)
 	httpReq := req.C().NewRequest()
 	httpReq = httpReq.SetContext(ctx)
 
 	for k, v := range i.cfg.Headers {
-		httpReq.SetHeader(k, runTemplate(v, i.cfg))
+		httpReq.SetHeader(k, runTemplate(v, i.cfg, i.currentLogger))
 	}
 
 	zerolog.Ctx(ctx).Trace().Str("url", apiUrl).Msg("sending request")
@@ -144,7 +152,7 @@ func (i *Instance) sendAndProcess(ctx context.Context) error {
 	}
 
 	value := resp.String()
-	zerolog.Ctx(ctx).Debug().Str("response", value).Msg("got raw response")
+	zerolog.Ctx(ctx).Trace().Str("response", value).Msg("got raw response")
 
 	if strings.TrimSpace(i.cfg.BodyScript) != "" {
 		zerolog.Ctx(ctx).Trace().Str("script", i.cfg.BodyScript).Msg("executing script")
@@ -185,14 +193,14 @@ func (i *Instance) sendAndProcess(ctx context.Context) error {
 		}
 	}
 
-	zerolog.Ctx(ctx).Debug().Str("final_result", value).Msgf("final")
+	zerolog.Ctx(ctx).Info().Str("final_result", value).Msgf("final")
 
 	return i.handleResponse(ctx, value)
 }
 
 func (i *Instance) handleResponse(_ context.Context, response string) error {
 	var sb strings.Builder
-	prefix := runTemplate(i.cfg.TitlePrefix, i.cfg)
+	prefix := runTemplate(i.cfg.TitlePrefix, i.cfg, i.currentLogger)
 	if prefix != "" {
 		sb.WriteString(strings.ReplaceAll(prefix, "\\n", "\n") + "\n")
 	}
@@ -217,7 +225,7 @@ func (i *Instance) handleResponse(_ context.Context, response string) error {
 		mapped = def
 	} else if !ok && !defaultOk {
 		sb.WriteString("!! NO !!\n !! MAPPING !!")
-		lg.Error().Msgf("response mapper not found for value - %v", response)
+		i.currentLogger.Error().Msgf("response mapper not found for value - %v", response)
 
 		sdk.SetTitle(i.contextApp, sb.String(), 0)
 		sdk.SetImage(i.contextApp, "", 0)

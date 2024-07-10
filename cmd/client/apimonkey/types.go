@@ -1,5 +1,7 @@
 package main
 
+import "github.com/rs/zerolog"
+
 type config struct {
 	ApiUrl                  string            `json:"apiUrl"`
 	BrowserUrl              string            `json:"browserUrl"`
@@ -11,4 +13,5 @@ type config struct {
 	TitlePrefix             string            `json:"titlePrefix"`
 	BodyScript              string            `json:"bodyScript"`
 	ShowSuccessNotification bool              `json:"showSuccessNotification"`
+	MinLogLevel             *zerolog.Level    `json:"logLevel"`
 }
